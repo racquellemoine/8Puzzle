@@ -115,30 +115,97 @@ class PuzzleState(object):
         # Compose self.children of all non-None children states
         self.children = [state for state in children if state is not None]
         return self.children
+    
+class QueueFrontier(): 
+    def __init__(self): 
+        self.queue = []
+
+    def add(self, state: PuzzleState): 
+        if state not in self.queue: 
+            self.queue.append(state)
+
+    def remove(self): 
+        return self.queue.pop(0)
+
+class StackFrontier(): 
+    def __init__(self): 
+        self.stack = []
+        self.set = set()
+    
+    def add(self, state):
+        if state not in self.stack: 
+            self.stack.append(state)
+        if tuple(state.config) not in self.set: 
+            self.set.add(tuple(state.config))
+
+    def remove(self):
+        if len(self.stack) > 0: 
+            element = self.stack.pop() 
+        if len(self.set) > 0: 
+            self.set.remove(tuple(element.config))
+        return element
 
 # Function that Writes to output.txt
-
 ### Students need to change the method to have the corresponding parameters
-def writeOutput():
+def writeOutput(path, cost, nodes_expanded, search_depth, max_search_depth):
     ### Student Code Goes here
+    with open("output.txt", "w") as file: 
+        file.write("path_to_goal:  {}\n".format(path))
+        file.write("cost_of_path: {}\n".format(cost))
+        file.write("nodes_expanded: {}\n".format(nodes_expanded))
+        file.write("search_depth: {}\n".format(search_depth))
+        file.write("max_search_depth: {}\n".format(max_search_depth))
     pass
 
 def bfs_search(initial_state):
     """BFS search"""
     ### STUDENT CODE GOES HERE ###
-    print("initial config: ")
-    initial_state.display()
-    print("")
+    max_search_depth = 0 
+    explored = set()
+    frontier = QueueFrontier()
+    frontier.add(initial_state)
+    while frontier.queue != []:
+        state = frontier.remove()
+        if test_goal(state.config): 
+            #write to output 
+            writeOutput(getPath(state), state.cost, len(explored), state.cost, max_search_depth)
+            break 
+        else: 
+            if tuple(state.config) not in explored and state not in frontier.queue: 
+                explored.add(tuple(state.config))
+                state.expand()       
+        for child in state.children: 
+            #add child to frontier 
+            if tuple(child.config) not in explored and child not in frontier.queue:
+                frontier.add(child)
+            #update max search depth 
+            if child.cost > max_search_depth: 
+                max_search_depth = child.cost
 
-    children = initial_state.expand()
-    for child in children: 
-        child.display()
-        print("")
 
 def dfs_search(initial_state):
     """DFS search"""
     ### STUDENT CODE GOES HERE ###
-    pass
+    max_search_depth = initial_state.cost
+    explored = set()
+    frontier = StackFrontier()
+    frontier.add(initial_state)
+    while frontier.stack != []:
+        state = frontier.remove()
+        if test_goal(state.config): 
+            writeOutput(getPath(state), state.cost, len(explored), state.cost, max_search_depth)
+            break 
+        else: 
+            if tuple(state.config) not in explored and tuple(state.config) not in frontier.set: 
+                explored.add(tuple(state.config))
+                state.expand()
+        for child in state.children[::-1]: 
+            #add child to frontier if config isn't there alr 
+            if tuple(child.config) not in explored and tuple(child.config) not in frontier.set:
+                frontier.add(child)
+            #update max search depth 
+            if child.cost > max_search_depth: 
+                max_search_depth = child.cost
 
 def A_star_search(initial_state):
     """A * search"""
@@ -155,10 +222,17 @@ def calculate_manhattan_dist(idx, value, n):
     ### STUDENT CODE GOES HERE ###
     pass
 
-def test_goal(puzzle_state):
+def test_goal(state):
     """test the state is the goal state or not"""
     ### STUDENT CODE GOES HERE ###
-    pass
+    return state == [0,1,2,3,4,5,6,7,8]
+
+def getPath(state): 
+    path = []
+    while state.parent is not None: 
+        path.insert(0, state.action)
+        state = state.parent
+    return path
 
 # Main Function that reads in Input and Runs corresponding Algorithm
 def main():
