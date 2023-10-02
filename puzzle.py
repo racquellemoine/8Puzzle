@@ -203,9 +203,9 @@ def dfs_search(initial_state):
             #add child to frontier if config isn't there alr 
             if tuple(child.config) not in explored and tuple(child.config) not in frontier.set:
                 frontier.add(child)
-            #update max search depth 
-            if child.cost > max_search_depth: 
-                max_search_depth = child.cost
+        #update max_search_depth 
+        if state.cost > max_search_depth: 
+            max_search_depth = state.cost
 
 def A_star_search(initial_state):
     """A * search"""
