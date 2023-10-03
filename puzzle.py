@@ -5,6 +5,7 @@ import sys
 import math
 import time
 import queue as Q
+import resource 
 
 
 #### SKELETON CODE ####
@@ -14,6 +15,8 @@ class PuzzleState(object):
         The PuzzleState stores a board configuration and implements
         movement instructions to generate valid children.
     """
+    action_order = {"Up": 0, "Down": 1, "Left": 3, "Right": 4}
+
     def __init__(self, config, n, parent=None, action="Initial", cost=0):
         """
         :param config->List : Represents the n*n board, for e.g. [0,1,2,3,4,5,6,7,8] represents the goal state.
@@ -31,6 +34,7 @@ class PuzzleState(object):
         self.cost     = cost
         self.parent   = parent
         self.action   = action
+        self.action_value = PuzzleState.action_order.get(action, -1)
         self.config   = config
         self.children = []
 
@@ -144,10 +148,32 @@ class StackFrontier():
         if len(self.set) > 0: 
             self.set.remove(tuple(element.config))
         return element
+    
+class PriorityQueue(): 
+    def __init__(self): 
+        #queue will store (state, h) where h is heuristic 
+        self.queue = []
+        self.set = set()
+
+    def add(self, state: PuzzleState): 
+        #calc heuristic using manhattan dist 
+        h = calculate_total_cost(state)
+        if (state, h) not in self.queue: 
+            self.queue.append((state, h))   
+        if tuple(state.config) not in self.set:
+            self.set.add(tuple(state.config))
+
+    def remove(self): 
+        if len(self.queue) > 0: 
+            self.queue.sort(key = lambda x: (x[1]+x[0].cost, x[0].action_order))
+            element = self.queue.pop(0)[0]
+        if len(self.set) > 0: 
+            self.set.remove(tuple(element.config))
+        return element
 
 # Function that Writes to output.txt
 ### Students need to change the method to have the corresponding parameters
-def writeOutput(path, cost, nodes_expanded, search_depth, max_search_depth):
+def writeOutput(path, cost, nodes_expanded, search_depth, max_search_depth, running_time, max_ram_usage):
     ### Student Code Goes here
     with open("output.txt", "w") as file: 
         file.write("path_to_goal:  {}\n".format(path))
@@ -155,11 +181,14 @@ def writeOutput(path, cost, nodes_expanded, search_depth, max_search_depth):
         file.write("nodes_expanded: {}\n".format(nodes_expanded))
         file.write("search_depth: {}\n".format(search_depth))
         file.write("max_search_depth: {}\n".format(max_search_depth))
+        file.write("running_time: {:.8f}\n".format(running_time))
+        file.write("max_ram_usage: {:.8f}\n".format(max_ram_usage))
     pass
 
-def bfs_search(initial_state):
+def bfs_search(initial_state, start_time):
     """BFS search"""
     ### STUDENT CODE GOES HERE ###
+    bfs_start_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     max_search_depth = 0 
     explored = set()
     frontier = QueueFrontier()
@@ -168,7 +197,8 @@ def bfs_search(initial_state):
         state = frontier.remove()
         if test_goal(state.config): 
             #write to output 
-            writeOutput(getPath(state), state.cost, len(explored), state.cost, max_search_depth)
+            bfs_ram = (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - bfs_start_ram) / (2**20)
+            writeOutput(getPath(state), state.cost, len(explored), state.cost, max_search_depth,  time.time()-start_time, bfs_ram)
             break 
         else: 
             if tuple(state.config) not in explored and state not in frontier.queue: 
@@ -183,17 +213,22 @@ def bfs_search(initial_state):
                 max_search_depth = child.cost
 
 
-def dfs_search(initial_state):
+def dfs_search(initial_state, start_time):
     """DFS search"""
     ### STUDENT CODE GOES HERE ###
+    dfs_start_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     max_search_depth = initial_state.cost
     explored = set()
     frontier = StackFrontier()
     frontier.add(initial_state)
     while frontier.stack != []:
         state = frontier.remove()
+        #update max_search_depth 
+        if state.cost > max_search_depth: 
+            max_search_depth = state.cost
         if test_goal(state.config): 
-            writeOutput(getPath(state), state.cost, len(explored), state.cost, max_search_depth)
+            dfs_ram = (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - dfs_start_ram) / (2**20)
+            writeOutput(getPath(state), state.cost, len(explored), state.cost, max_search_depth, time.time()-start_time, dfs_ram)
             break 
         else: 
             if tuple(state.config) not in explored and tuple(state.config) not in frontier.set: 
@@ -203,29 +238,64 @@ def dfs_search(initial_state):
             #add child to frontier if config isn't there alr 
             if tuple(child.config) not in explored and tuple(child.config) not in frontier.set:
                 frontier.add(child)
-        #update max_search_depth 
-        if state.cost > max_search_depth: 
-            max_search_depth = state.cost
 
-def A_star_search(initial_state):
+def A_star_search(initial_state, start_time):
     """A * search"""
     ### STUDENT CODE GOES HERE ###
-    pass
+    astar_start_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    max_search_depth = 0 
+    explored = set()
+    frontier = PriorityQueue()
+    frontier.add(initial_state)
+    while frontier.queue != []: 
+        state = frontier.remove()
+        if test_goal(state.config):
+            #write to output 
+            astar_ram = (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - astar_start_ram) / (2**20)
+            writeOutput(getPath(state), state.cost, len(explored), state.cost, max_search_depth, time.time()-start_time, astar_ram)
+            break  
+        elif tuple(state.config) not in explored and tuple(state.config) not in frontier.set: 
+            explored.add(tuple(state.config))
+            state.expand()
+        for child in state.children: 
+            #add child to frontier 
+            if tuple(child.config) not in explored and tuple(child.config) not in frontier.set: 
+                frontier.add(child)
+            #update max search depth 
+            if child.cost > max_search_depth: 
+                max_search_depth = child.cost
+        #if len(explored)>10: break 
 
-def calculate_total_cost(state):
+def calculate_total_cost(state: PuzzleState):
     """calculate the total estimated cost of a state"""
     ### STUDENT CODE GOES HERE ###
-    pass
+    h = 0 
+    for i, tile in enumerate(state.config):  
+        h += calculate_manhattan_dist(i, tile, state.n)
+    return h
 
 def calculate_manhattan_dist(idx, value, n):
     """calculate the manhattan distance of a tile"""
     ### STUDENT CODE GOES HERE ###
-    pass
+    rowDistance = abs(getRow(idx) - getRow(value))
+    columnDistance = abs(getColumn(idx) - getColumn(value))
+    return rowDistance + columnDistance
 
 def test_goal(state):
     """test the state is the goal state or not"""
     ### STUDENT CODE GOES HERE ###
     return state == [0,1,2,3,4,5,6,7,8]
+
+def getRow(idx): 
+    if idx in [0,1,2]: 
+        return 0 
+    if idx in [3,4,5]: 
+        return 1 
+    else: 
+        return 2 
+    
+def getColumn(idx): 
+    return idx%3 
 
 def getPath(state): 
     path = []
@@ -243,9 +313,9 @@ def main():
     hard_state  = PuzzleState(begin_state, board_size)
     start_time  = time.time()
     
-    if   search_mode == "bfs": bfs_search(hard_state)
-    elif search_mode == "dfs": dfs_search(hard_state)
-    elif search_mode == "ast": A_star_search(hard_state)
+    if   search_mode == "bfs": bfs_search(hard_state, start_time)
+    elif search_mode == "dfs": dfs_search(hard_state, start_time)
+    elif search_mode == "ast": A_star_search(hard_state, start_time)
     else: 
         print("Enter valid command arguments !")
         
