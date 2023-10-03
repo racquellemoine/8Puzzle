@@ -8,7 +8,6 @@ import queue as Q
 import resource 
 
 
-#### SKELETON CODE ####
 ## The Class that Represents the Puzzle
 class PuzzleState(object):
     """
@@ -134,6 +133,7 @@ class QueueFrontier():
 class StackFrontier(): 
     def __init__(self): 
         self.stack = []
+        #use set to make sure we do not queue same configuration twice 
         self.set = set()
     
     def add(self, state):
@@ -153,6 +153,7 @@ class PriorityQueue():
     def __init__(self): 
         #queue will store (state, h) where h is heuristic 
         self.queue = []
+        #use set to make sure we do not queue same configuration twice 
         self.set = set()
 
     def add(self, state: PuzzleState): 
@@ -164,6 +165,7 @@ class PriorityQueue():
             self.set.add(tuple(state.config))
 
     def remove(self): 
+        #return element if remove is successful
         if len(self.queue) > 0: 
             self.queue.sort(key = lambda x: (x[1]+x[0].cost, x[0].action_order))
             element = self.queue.pop(0)[0]
@@ -172,9 +174,7 @@ class PriorityQueue():
         return element
 
 # Function that Writes to output.txt
-### Students need to change the method to have the corresponding parameters
 def writeOutput(path, cost, nodes_expanded, search_depth, max_search_depth, running_time, max_ram_usage):
-    ### Student Code Goes here
     with open("output.txt", "w") as file: 
         file.write("path_to_goal:  {}\n".format(path))
         file.write("cost_of_path: {}\n".format(cost))
@@ -187,7 +187,6 @@ def writeOutput(path, cost, nodes_expanded, search_depth, max_search_depth, runn
 
 def bfs_search(initial_state, start_time):
     """BFS search"""
-    ### STUDENT CODE GOES HERE ###
     bfs_start_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     max_search_depth = 0 
     explored = set()
@@ -215,7 +214,6 @@ def bfs_search(initial_state, start_time):
 
 def dfs_search(initial_state, start_time):
     """DFS search"""
-    ### STUDENT CODE GOES HERE ###
     dfs_start_ram = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     max_search_depth = initial_state.cost
     explored = set()
@@ -268,7 +266,6 @@ def A_star_search(initial_state, start_time):
 
 def calculate_total_cost(state: PuzzleState):
     """calculate the total estimated cost of a state"""
-    ### STUDENT CODE GOES HERE ###
     h = 0 
     for i, tile in enumerate(state.config):  
         h += calculate_manhattan_dist(i, tile, state.n)
@@ -276,14 +273,12 @@ def calculate_total_cost(state: PuzzleState):
 
 def calculate_manhattan_dist(idx, value, n):
     """calculate the manhattan distance of a tile"""
-    ### STUDENT CODE GOES HERE ###
     rowDistance = abs(getRow(idx) - getRow(value))
     columnDistance = abs(getColumn(idx) - getColumn(value))
     return rowDistance + columnDistance
 
 def test_goal(state):
     """test the state is the goal state or not"""
-    ### STUDENT CODE GOES HERE ###
     return state == [0,1,2,3,4,5,6,7,8]
 
 def getRow(idx): 
@@ -298,6 +293,7 @@ def getColumn(idx):
     return idx%3 
 
 def getPath(state): 
+    #get path of current state from root node 
     path = []
     while state.parent is not None: 
         path.insert(0, state.action)
